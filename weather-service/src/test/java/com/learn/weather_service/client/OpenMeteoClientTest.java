@@ -10,6 +10,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.time.Duration;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import com.learn.weather_service.client.OpenMeteoModels.ForecastApiResponse;
+import com.learn.weather_service.client.OpenMeteoModels.GeocodingMatch;
 import com.learn.weather_service.client.OpenMeteoModels.GeocodingResult;
 import com.learn.weather_service.config.WeatherApiProperties;
 import com.learn.weather_service.exception.CityNotFoundException;
@@ -132,5 +134,63 @@ class OpenMeteoClientTest {
 				.andRespond(withSuccess("{\"latitude\":1}", MediaType.APPLICATION_JSON));
 		assertThatThrownBy(() -> client.fetchDaily(1, 2, 5)).isInstanceOf(UpstreamServiceException.class)
 				.hasMessage("Forecast service returned no data");
+	}
+
+	@Test
+	void searchCitiesParsesMultipleResultsAndMapsFields() {
+		String body = "{\"results\":["
+				+ "{\"id\":1,\"name\":\"London\",\"admin1\":\"England\",\"country\":\"United Kingdom\","
+				+ "\"country_code\":\"GB\",\"latitude\":51.5,\"longitude\":-0.12,\"extra\":\"x\"},"
+				+ "{\"id\":2,\"name\":\"London\",\"admin1\":\"Ontario\",\"country\":\"Canada\","
+				+ "\"country_code\":\"CA\",\"latitude\":42.9,\"longitude\":-81.2}],"
+				+ "\"generationtime_ms\":0.5}";
+		server.expect(requestTo(GEO + "?name=Lon&count=5")).andExpect(method(HttpMethod.GET))
+				.andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+
+		List<GeocodingMatch> r = client.searchCities("Lon", 5);
+
+		assertThat(r).hasSize(2);
+		assertThat(r.get(0).id()).isEqualTo(1L);
+		assertThat(r.get(0).name()).isEqualTo("London");
+		assertThat(r.get(0).admin1()).isEqualTo("England");
+		assertThat(r.get(0).country()).isEqualTo("United Kingdom");
+		assertThat(r.get(0).countryCode()).isEqualTo("GB");
+		assertThat(r.get(0).latitude()).isEqualTo(51.5);
+		assertThat(r.get(0).longitude()).isEqualTo(-0.12);
+		assertThat(r.get(1).countryCode()).isEqualTo("CA");
+		server.verify();
+	}
+
+	@Test
+	void searchCitiesEncodesSpaces() {
+		server.expect(requestTo(GEO + "?name=New%20York&count=3"))
+				.andRespond(withSuccess("{\"results\":[]}", MediaType.APPLICATION_JSON));
+
+		assertThat(client.searchCities("New York", 3)).isEmpty();
+		server.verify();
+	}
+
+	@Test
+	void searchCitiesMissingResultsKeyReturnsEmptyList() {
+		server.expect(requestTo(GEO + "?name=Zzzz&count=5"))
+				.andRespond(withSuccess("{\"generationtime_ms\":0.1}", MediaType.APPLICATION_JSON));
+
+		assertThat(client.searchCities("Zzzz", 5)).isEmpty();
+	}
+
+	@Test
+	void searchCitiesEmptyObjectBodyReturnsEmptyList() {
+		server.expect(requestTo(GEO + "?name=Zzzz&count=5"))
+				.andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+		assertThat(client.searchCities("Zzzz", 5)).isEmpty();
+	}
+
+	@Test
+	void searchCitiesServerErrorThrowsUpstreamServiceException() {
+		server.expect(requestTo(GEO + "?name=Lon&count=5")).andRespond(withServerError());
+
+		assertThatThrownBy(() -> client.searchCities("Lon", 5)).isInstanceOf(UpstreamServiceException.class)
+				.hasMessage("Geocoding service call failed");
 	}
 }

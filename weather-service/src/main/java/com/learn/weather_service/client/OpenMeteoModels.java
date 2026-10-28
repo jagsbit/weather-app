@@ -19,6 +19,15 @@ public final class OpenMeteoModels {
 	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
+	public record GeocodingSearchResponse(List<GeocodingMatch> results) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public record GeocodingMatch(long id, String name, String admin1, String country,
+			@JsonProperty("country_code") String countryCode, double latitude, double longitude) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
 	public record ForecastApiResponse(Daily daily) {
 	}
 
