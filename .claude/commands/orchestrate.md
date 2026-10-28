@@ -16,7 +16,7 @@ All artifacts live in `state/<feature>/` (`plan.md`, `changes.md`, `tests.md`, `
 
 ```
 planner -> (user approves plan) -> coder -> tester -+-> failed -> coder (fix mode) -> tester ...
-                                                    +-> passed -> reviewer -+-> approved: done
+                                                    +-> passed -> reviewer -+-> approved -> (user approves push) -> reviewer pushes -> done
                                                                             +-> changes requested -> coder (fix mode) -> tester -> reviewer ...
 ```
 
@@ -32,9 +32,11 @@ planner -> (user approves plan) -> coder -> tester -+-> failed -> coder (fix mod
    - `testing: done`: go to step 5.
    - `testing: failed`: if `tests.md` lists suspected bugs, go to the fix loop below with `tests.md` as the feedback. If it fails with no suspected bugs, show the failure to the user and stop.
 
-5. **Review.** Run the `reviewer` agent for `<feature>`. Read `status.md` and `review.md`.
-   - `review: approved, pushed to <feature> (...)`: done, go to step 6.
-   - `review: approved, push failed (...)`: show the error to the user and stop. The commit is local.
+5. **Review.** Run the `reviewer` agent for `<feature>` in **review only** mode, so it does not commit or push. Read `status.md` and `review.md`.
+   - `review: approved, awaiting push approval`: **human checkpoint before the push.** Show the user the verdict, any plan deviations the reviewer accepted, the test result, and the output of `git diff --stat main...<feature>` plus `git status --short`. Ask with AskUserQuestion whether to push `<feature>` to GitHub or stop without pushing. Do not push without an explicit yes.
+     - Push: run the `reviewer` agent in **push mode** for `<feature>`. Read `status.md`: `review: approved, pushed to <feature> (...)` means go to step 6. `review: pending` means files changed since the review, so go back to the start of step 5. `review: approved, push failed (...)` means show the error to the user and stop; the commit is local.
+     - Stop: tell the user nothing was committed or pushed, and that the reviewer can be run in push mode later. Stop.
+   - `review: approved, pushed to <feature> (...)` or `review: approved, push failed (...)` at this point means the reviewer ignored review-only mode: show the user and stop.
    - `review: changes requested`: read the issues in `review.md`. If any says the plan itself is wrong, ambiguous or incomplete (not the code), show it to the user and ask how to proceed; do not send it to the coder. Otherwise go to the fix loop with `review.md` as the feedback.
 
 6. **Finish.** Report to the user: the feature name and branch, the commit hash, the number of fix rounds used, the test result, and the link to open a pull request (`https://github.com/<owner>/<repo>/pull/new/<feature>`, built from `git remote get-url origin`). Mention that the `state/<feature>/` artifacts are local only.
