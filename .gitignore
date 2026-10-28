@@ -14,3 +14,9 @@
 Thumbs.db
 
 
+
+### Agent workflow artifacts ###
+state/
+
+### Exported conversations ###
+*.txt
