@@ -34,6 +34,26 @@ def tokens_of(segment):
         return segment.split()
 
 
+REDIRECT = re.compile(r"^(\d*|&)(>>?|<)(&\d+|-)?(.*)$")
+
+
+def strip_redirects(tokens):
+    """Drop shell redirections (`2>&1`, `>out.txt`, `2> err`, `&>log`) from a token list."""
+    out = []
+    skip_next = False
+    for tok in tokens:
+        if skip_next:
+            skip_next = False
+            continue
+        m = REDIRECT.match(tok)
+        if m:
+            # a bare operator like `>` or `2>` takes the next token as its target
+            skip_next = not m.group(3) and not m.group(4)
+            continue
+        out.append(tok)
+    return out
+
+
 def push_args(command):
     """Yield the argument list of every `git push` found in the command."""
     for segment in re.split(r"&&|\|\||;|\||\n", command):
@@ -49,7 +69,7 @@ def push_args(command):
         while i < len(rest) and rest[i].startswith("-"):
             i += 2 if rest[i] in GIT_OPTS_WITH_VALUE else 1
         if i < len(rest) and rest[i] == "push":
-            yield rest[i + 1:]
+            yield strip_redirects(rest[i + 1:])
 
 
 def current_branch(project_dir):
