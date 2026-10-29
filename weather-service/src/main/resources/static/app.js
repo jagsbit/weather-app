@@ -10,6 +10,30 @@
   var resultsEl = document.getElementById('results');
   var forecastEl = document.getElementById('forecast');
 
+  var UNIT_KEY = 'weather.unit';
+  var toggleEl = document.getElementById('unit-toggle');
+
+  function loadUnit() {
+    try {
+      return localStorage.getItem(UNIT_KEY) === 'F' ? 'F' : 'C';
+    } catch (e) {
+      return 'C';
+    }
+  }
+
+  function saveUnit(u) {
+    try { localStorage.setItem(UNIT_KEY, u); } catch (e) { /* ignore */ }
+  }
+
+  var unit = loadUnit();
+  var lastForecast = null;
+
+  function toDisplay(c) {
+    if (typeof c !== 'number' || isNaN(c)) { return ''; }
+    var v = unit === 'F' ? c * 9 / 5 + 32 : c;
+    return v.toFixed(1);
+  }
+
   var timer = null;
   var searchController = null;
   var forecastController = null;
@@ -99,6 +123,8 @@
   }
 
   function renderForecast(data) {
+    lastForecast = data;
+    var symbol = '°' + unit;
     forecastEl.textContent = '';
     var h = document.createElement('h2');
     h.textContent = data.city + ', ' + data.country +
@@ -107,15 +133,15 @@
 
     var table = document.createElement('table');
     var head = document.createElement('tr');
-    ['Date', 'Min C', 'Max C', 'Precip mm', 'Summary'].forEach(function (t) {
+    ['Date', 'Min ' + symbol, 'Max ' + symbol, 'Precip mm', 'Summary'].forEach(function (t) {
       cell(head, t, 'th');
     });
     table.appendChild(head);
     (data.days || []).forEach(function (d) {
       var row = document.createElement('tr');
       cell(row, d.date);
-      cell(row, d.minTempC);
-      cell(row, d.maxTempC);
+      cell(row, toDisplay(d.minTempC));
+      cell(row, toDisplay(d.maxTempC));
       cell(row, d.precipitationMm);
       cell(row, d.summary);
       table.appendChild(row);
@@ -153,6 +179,27 @@
         }
       });
   }
+
+  function syncToggle() {
+    Array.prototype.forEach.call(toggleEl.querySelectorAll('button[data-unit]'), function (b) {
+      var active = b.getAttribute('data-unit') === unit;
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+      b.classList.toggle('active', active);
+    });
+  }
+
+  function setUnit(u) {
+    unit = u === 'F' ? 'F' : 'C';
+    saveUnit(unit);
+    syncToggle();
+    if (lastForecast) { renderForecast(lastForecast); }
+  }
+
+  toggleEl.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-unit]') : null;
+    if (b) { setUnit(b.getAttribute('data-unit')); }
+  });
+  syncToggle();
 
   input.addEventListener('input', function () {
     clearTimeout(timer);

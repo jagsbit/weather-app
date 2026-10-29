@@ -39,6 +39,21 @@ main {
 #results button:focus {
   background: #e8eefc;
 }
+#unit-toggle {
+  margin: 0.5rem 0;
+}
+#unit-toggle button {
+  padding: 0.3rem 0.8rem;
+  font-size: 1rem;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #ccd;
+}
+#unit-toggle button.active {
+  background: #2a5bd7;
+  border-color: #2a5bd7;
+  color: #fff;
+}
 table {
   width: 100%;
   border-collapse: collapse;

@@ -12,6 +12,10 @@
     <h1>City weather</h1>
     <input id="q" type="search" autocomplete="off" placeholder="Search city" aria-label="Search city">
     <p id="status" role="status" aria-live="polite"></p>
+    <div id="unit-toggle" role="group" aria-label="Temperature unit">
+      <button type="button" data-unit="C" aria-pressed="true" class="active">&deg;C</button>
+      <button type="button" data-unit="F" aria-pressed="false">&deg;F</button>
+    </div>
     <ul id="results"></ul>
     <section id="forecast" hidden></section>
   </main>
