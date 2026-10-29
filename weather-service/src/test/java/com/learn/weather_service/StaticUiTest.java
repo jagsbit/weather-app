@@ -59,6 +59,24 @@ class StaticUiTest {
     }
 
     @Test
+    void appJsContainsCityStorageKey() throws Exception {
+        mockMvc.perform(get("/app.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("weather.city")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("weather.unit")));
+    }
+
+    @Test
+    void appJsPersistsAndRestoresCity() throws Exception {
+        mockMvc.perform(get("/app.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function loadCity")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("function saveCity")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("saveCity(city.name)")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("loadForecast({ name: savedCity })")));
+    }
+
+    @Test
     void stylesServed() throws Exception {
         mockMvc.perform(get("/styles.css"))
                 .andExpect(status().isOk());
