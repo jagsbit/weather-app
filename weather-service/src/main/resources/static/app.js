@@ -25,6 +25,21 @@
     try { localStorage.setItem(UNIT_KEY, u); } catch (e) { /* ignore */ }
   }
 
+  var CITY_KEY = 'weather.city';
+
+  function loadCity() {
+    try {
+      var v = localStorage.getItem(CITY_KEY);
+      return typeof v === 'string' && v.trim().length >= MIN_LENGTH ? v.trim() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveCity(name) {
+    try { localStorage.setItem(CITY_KEY, name); } catch (e) { /* ignore */ }
+  }
+
   var unit = loadUnit();
   var lastForecast = null;
 
@@ -163,6 +178,7 @@
         if (response.ok) {
           return response.json().then(function (data) {
             if (controller !== forecastController) { return; }
+            saveCity(city.name);
             setStatus('');
             renderForecast(data);
           });
@@ -200,6 +216,12 @@
     if (b) { setUnit(b.getAttribute('data-unit')); }
   });
   syncToggle();
+
+  var savedCity = loadCity();
+  if (savedCity) {
+    input.value = savedCity;
+    loadForecast({ name: savedCity });
+  }
 
   input.addEventListener('input', function () {
     clearTimeout(timer);
