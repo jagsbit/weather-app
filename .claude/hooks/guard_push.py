@@ -118,7 +118,7 @@ def check_branch(branch, project_dir):
     if not os.path.isfile(status):
         return  # not a pipeline feature branch
     with open(status, encoding="utf-8") as f:
-        if any(re.match(r"review:\s*approved", line) for line in f):
+        if any(re.match(r"(?:[-*]\s+)?review:\s*approved", line.strip()) for line in f):
             return
     block(
         f"`{branch}` has no approved review in state/{branch}/status.md. "

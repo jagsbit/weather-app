@@ -41,7 +41,8 @@ def status_lines(feature_dir):
     if not os.path.isfile(path):
         block(f"{path} is missing, so the stage state is unknown")
     with open(path, encoding="utf-8") as f:
-        return [line.strip() for line in f]
+        # tolerate markdown bullets: "- planning: done" reads as "planning: done"
+        return [re.sub(r"^[-*]\s+", "", line.strip()) for line in f]
 
 
 def has_status(lines, pattern):
