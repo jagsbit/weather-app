@@ -43,6 +43,22 @@ class StaticUiTest {
     }
 
     @Test
+    void indexHtmlContainsUnitToggle() throws Exception {
+        mockMvc.perform(get("/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"unit-toggle\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-unit=\"C\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-unit=\"F\"")));
+    }
+
+    @Test
+    void appJsContainsUnitStorageKey() throws Exception {
+        mockMvc.perform(get("/app.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("weather.unit")));
+    }
+
+    @Test
     void stylesServed() throws Exception {
         mockMvc.perform(get("/styles.css"))
                 .andExpect(status().isOk());
