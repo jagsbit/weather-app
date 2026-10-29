@@ -11,6 +11,17 @@
             "statusMessage": "Checking git push..."
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_stage.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking pipeline stage..."
+          }
+        ]
       }
     ]
   }

@@ -1,12 +1,16 @@
 package com.learn.weather_service.client;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import com.learn.weather_service.client.OpenMeteoModels.ForecastApiResponse;
 import com.learn.weather_service.client.OpenMeteoModels.GeocodingResponse;
+import com.learn.weather_service.client.OpenMeteoModels.GeocodingMatch;
 import com.learn.weather_service.client.OpenMeteoModels.GeocodingResult;
+import com.learn.weather_service.client.OpenMeteoModels.GeocodingSearchResponse;
 import com.learn.weather_service.config.WeatherApiProperties;
 import com.learn.weather_service.exception.CityNotFoundException;
 import com.learn.weather_service.exception.UpstreamServiceException;
@@ -37,6 +41,23 @@ public class OpenMeteoClient {
 			throw new CityNotFoundException(city);
 		}
 		return response.results().get(0);
+	}
+
+	public List<GeocodingMatch> searchCities(String query, int limit) {
+		GeocodingSearchResponse response;
+		try {
+			response = restClient.get()
+					.uri(properties.geocodingUrl() + "?name={q}&count={n}", query, limit)
+					.retrieve()
+					.body(GeocodingSearchResponse.class);
+		}
+		catch (RestClientException ex) {
+			throw new UpstreamServiceException("Geocoding service call failed", ex);
+		}
+		if (response == null || response.results() == null) {
+			return List.of();
+		}
+		return response.results();
 	}
 
 	public ForecastApiResponse fetchDaily(double latitude, double longitude, int days) {
