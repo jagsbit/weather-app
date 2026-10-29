@@ -1,0 +1,50 @@
+package com.learn.weather_service;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class StaticUiTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void rootForwardsToIndex() throws Exception {
+        // MockMvc does not follow the welcome-page forward, so assert the forward target.
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(forwardedUrl("index.html"));
+    }
+
+    @Test
+    void indexHtmlServed() throws Exception {
+        mockMvc.perform(get("/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"q\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"results\"")));
+    }
+
+    @Test
+    void appJsServed() throws Exception {
+        mockMvc.perform(get("/app.js"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void stylesServed() throws Exception {
+        mockMvc.perform(get("/styles.css"))
+                .andExpect(status().isOk());
+    }
+}
