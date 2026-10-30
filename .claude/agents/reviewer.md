@@ -24,7 +24,7 @@ The caller names the mode in the prompt:
    - every implementation step and file in the plan is done, and nothing in the diff goes beyond the plan (no extra features, refactors or files)
    - `changes.md` matches the real diff
    - the API/data contract in the plan matches the code
-   - the code follows the project's conventions and has no obvious bugs, missing error handling, or secrets (API keys, tokens, `.env` or `.mcp.json` contents)
+   - the code follows the project's conventions and has no obvious bugs, missing error handling, or secrets (API keys, tokens, `.env` contents, or a literal token such as `ghp_` / `github_pat_` in `.mcp.json`)
    - tests exist for the changes and `tests.md` shows them passing
 5. **Run the build and tests yourself** (`mvnw test` or `gradlew test`, whichever the project uses) and confirm they pass.
 6. **Decide.**
@@ -36,7 +36,7 @@ The caller names the mode in the prompt:
 
 Only after approving:
 
-1. Stage files by name: the production and test files listed in `changes.md` and `tests.md`. Never use `git add -A` or `git add .`. Never stage `.env`, `.mcp.json`, `state/`, `.claude/` or anything else not part of the feature.
+1. Stage files by name: the production and test files listed in `changes.md` and `tests.md`. Never use `git add -A` or `git add .`. Stage `.mcp.json` only if it contains just the `${GITHUB_PAT}` placeholder and no literal token (`ghp_`, `github_pat_`). Never stage `.env`, `state/`, `.claude/` or anything else not part of the feature.
 2. Run `git diff --cached --stat` and confirm only the expected files are staged. Unstage anything else.
 3. Commit with a message in the form `<feature>: <one-line summary of the change>`, a blank line, a few lines on what was done, then this final line:
    `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`
