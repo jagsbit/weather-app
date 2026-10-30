@@ -77,6 +77,22 @@ class StaticUiTest {
     }
 
     @Test
+    void appJsSendsUnitsParam() throws Exception {
+        mockMvc.perform(get("/app.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("units=")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("imperial")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("metric")));
+    }
+
+    @Test
+    void appJsHasNoClientSideConversion() throws Exception {
+        mockMvc.perform(get("/app.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("9 / 5"))));
+    }
+
+    @Test
     void stylesServed() throws Exception {
         mockMvc.perform(get("/styles.css"))
                 .andExpect(status().isOk());

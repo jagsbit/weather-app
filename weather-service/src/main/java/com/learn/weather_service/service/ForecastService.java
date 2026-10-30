@@ -12,6 +12,7 @@ import com.learn.weather_service.client.OpenMeteoModels.GeocodingResult;
 import com.learn.weather_service.dto.DailyForecast;
 import com.learn.weather_service.dto.ForecastResponse;
 import com.learn.weather_service.exception.UpstreamServiceException;
+import com.learn.weather_service.model.Units;
 
 @Service
 public class ForecastService {
@@ -34,9 +35,9 @@ public class ForecastService {
 		this.client = client;
 	}
 
-	public ForecastResponse getForecast(String city) {
+	public ForecastResponse getForecast(String city, Units units) {
 		GeocodingResult place = client.geocode(city);
-		Daily daily = client.fetchDaily(place.latitude(), place.longitude(), FORECAST_DAYS).daily();
+		Daily daily = client.fetchDaily(place.latitude(), place.longitude(), FORECAST_DAYS, units).daily();
 
 		List<String> time = daily.time();
 		if (!hasSize(time, FORECAST_DAYS)
@@ -53,7 +54,8 @@ public class ForecastService {
 			days.add(new DailyForecast(time.get(i), daily.temperatureMin().get(i), daily.temperatureMax().get(i),
 					daily.precipitationSum().get(i), code, WMO_SUMMARIES.getOrDefault(code, "Unknown")));
 		}
-		return new ForecastResponse(place.name(), place.country(), place.latitude(), place.longitude(), days);
+		return new ForecastResponse(place.name(), place.country(), place.latitude(), place.longitude(),
+				units.id(), units.temperatureLabel(), units.precipitationLabel(), days);
 	}
 
 	private static boolean hasSize(List<?> list, int size) {

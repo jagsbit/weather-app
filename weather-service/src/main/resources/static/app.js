@@ -41,13 +41,7 @@
   }
 
   var unit = loadUnit();
-  var lastForecast = null;
-
-  function toDisplay(c) {
-    if (typeof c !== 'number' || isNaN(c)) { return ''; }
-    var v = unit === 'F' ? c * 9 / 5 + 32 : c;
-    return v.toFixed(1);
-  }
+  var lastCity = null;
 
   var timer = null;
   var searchController = null;
@@ -138,8 +132,6 @@
   }
 
   function renderForecast(data) {
-    lastForecast = data;
-    var symbol = '°' + unit;
     forecastEl.textContent = '';
     var h = document.createElement('h2');
     h.textContent = data.city + ', ' + data.country +
@@ -148,16 +140,17 @@
 
     var table = document.createElement('table');
     var head = document.createElement('tr');
-    ['Date', 'Min ' + symbol, 'Max ' + symbol, 'Precip mm', 'Summary'].forEach(function (t) {
+    ['Date', 'Min ' + data.temperatureUnit, 'Max ' + data.temperatureUnit,
+      'Precip ' + data.precipitationUnit, 'Summary'].forEach(function (t) {
       cell(head, t, 'th');
     });
     table.appendChild(head);
     (data.days || []).forEach(function (d) {
       var row = document.createElement('tr');
       cell(row, d.date);
-      cell(row, toDisplay(d.minTempC));
-      cell(row, toDisplay(d.maxTempC));
-      cell(row, d.precipitationMm);
+      cell(row, d.minTemp);
+      cell(row, d.maxTemp);
+      cell(row, d.precipitation);
       cell(row, d.summary);
       table.appendChild(row);
     });
@@ -166,13 +159,15 @@
   }
 
   function loadForecast(city) {
+    lastCity = city;
     if (forecastController) { forecastController.abort(); }
     var controller = new AbortController();
     forecastController = controller;
     forecastEl.hidden = true;
     setStatus('Loading forecast...');
 
-    fetch('/api/forecast?city=' + encodeURIComponent(city.name),
+    fetch('/api/forecast?city=' + encodeURIComponent(city.name) +
+          '&units=' + (unit === 'F' ? 'imperial' : 'metric'),
           { signal: controller.signal })
       .then(function (response) {
         if (response.ok) {
@@ -208,7 +203,7 @@
     unit = u === 'F' ? 'F' : 'C';
     saveUnit(unit);
     syncToggle();
-    if (lastForecast) { renderForecast(lastForecast); }
+    if (lastCity) { loadForecast(lastCity); }
   }
 
   toggleEl.addEventListener('click', function (e) {

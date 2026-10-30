@@ -14,6 +14,7 @@ import com.learn.weather_service.client.OpenMeteoModels.GeocodingSearchResponse;
 import com.learn.weather_service.config.WeatherApiProperties;
 import com.learn.weather_service.exception.CityNotFoundException;
 import com.learn.weather_service.exception.UpstreamServiceException;
+import com.learn.weather_service.model.Units;
 
 @Component
 public class OpenMeteoClient {
@@ -60,15 +61,16 @@ public class OpenMeteoClient {
 		return response.results();
 	}
 
-	public ForecastApiResponse fetchDaily(double latitude, double longitude, int days) {
+	public ForecastApiResponse fetchDaily(double latitude, double longitude, int days, Units units) {
 		ForecastApiResponse response;
 		try {
 			response = restClient.get()
 					.uri(properties.forecastUrl()
 							+ "?latitude={lat}&longitude={lon}"
 							+ "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
-							+ "&forecast_days={days}&timezone=auto",
-							latitude, longitude, days)
+							+ "&forecast_days={days}&timezone=auto"
+							+ "&temperature_unit={tu}&precipitation_unit={pu}",
+							latitude, longitude, days, units.temperatureParam(), units.precipitationParam())
 					.retrieve()
 					.body(ForecastApiResponse.class);
 		}
