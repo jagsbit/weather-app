@@ -21,6 +21,7 @@ import com.learn.weather_service.client.OpenMeteoModels.GeocodingResult;
 import com.learn.weather_service.dto.ForecastResponse;
 import com.learn.weather_service.exception.CityNotFoundException;
 import com.learn.weather_service.exception.UpstreamServiceException;
+import com.learn.weather_service.model.Units;
 
 @ExtendWith(MockitoExtension.class)
 class ForecastServiceTest {
@@ -54,10 +55,10 @@ class ForecastServiceTest {
 	@Test
 	void happyPathMapsFiveDays() {
 		when(client.geocode("London")).thenReturn(london);
-		when(client.fetchDaily(51.5, -0.12, 5))
+		when(client.fetchDaily(51.5, -0.12, 5, Units.METRIC))
 				.thenReturn(new ForecastApiResponse(validDaily(List.of(3, 0, 61, 95, 99))));
 
-		ForecastResponse r = service.getForecast("London");
+		ForecastResponse r = service.getForecast("London", Units.METRIC);
 
 		assertThat(r.city()).isEqualTo("London");
 		assertThat(r.country()).isEqualTo("United Kingdom");
@@ -65,27 +66,56 @@ class ForecastServiceTest {
 		assertThat(r.longitude()).isEqualTo(-0.12);
 		assertThat(r.days()).hasSize(5);
 		assertThat(r.days().get(0).date()).isEqualTo("d1");
-		assertThat(r.days().get(0).minTempC()).isEqualTo(1.0);
-		assertThat(r.days().get(0).maxTempC()).isEqualTo(10.0);
-		assertThat(r.days().get(0).precipitationMm()).isEqualTo(0.0);
+		assertThat(r.days().get(0).minTemp()).isEqualTo(1.0);
+		assertThat(r.days().get(0).maxTemp()).isEqualTo(10.0);
+		assertThat(r.days().get(0).precipitation()).isEqualTo(0.0);
 		assertThat(r.days().get(0).weatherCode()).isEqualTo(3);
 		assertThat(r.days().get(0).summary()).isEqualTo("Overcast");
 		assertThat(r.days().get(1).summary()).isEqualTo("Clear sky");
 		assertThat(r.days().get(2).summary()).isEqualTo("Slight rain");
 		assertThat(r.days().get(3).summary()).isEqualTo("Thunderstorm");
 		assertThat(r.days().get(4).summary()).isEqualTo("Thunderstorm with heavy hail");
-		assertThat(r.days().get(4).maxTempC()).isEqualTo(14.0);
-		assertThat(r.days().get(4).minTempC()).isEqualTo(5.0);
-		assertThat(r.days().get(4).precipitationMm()).isEqualTo(0.4);
+		assertThat(r.days().get(4).maxTemp()).isEqualTo(14.0);
+		assertThat(r.days().get(4).minTemp()).isEqualTo(5.0);
+		assertThat(r.days().get(4).precipitation()).isEqualTo(0.4);
+	}
+
+	@Test
+	void metricReportsMetricUnits() {
+		when(client.geocode("London")).thenReturn(london);
+		when(client.fetchDaily(51.5, -0.12, 5, Units.METRIC))
+				.thenReturn(new ForecastApiResponse(validDaily(List.of(0, 0, 0, 0, 0))));
+		ForecastResponse r = service.getForecast("London", Units.METRIC);
+		assertThat(r.units()).isEqualTo("metric");
+		assertThat(r.temperatureUnit()).isEqualTo("°C");
+		assertThat(r.precipitationUnit()).isEqualTo("mm");
+	}
+
+	@Test
+	void imperialPassesUnitsToClientAndValuesThroughUnconverted() {
+		when(client.geocode("London")).thenReturn(london);
+		List<Double> fifty = List.of(50.0, 50.0, 50.0, 50.0, 50.0);
+		when(client.fetchDaily(51.5, -0.12, 5, Units.IMPERIAL))
+				.thenReturn(new ForecastApiResponse(daily(T5, C5, fifty, fifty, fifty)));
+
+		ForecastResponse r = service.getForecast("London", Units.IMPERIAL);
+
+		verify(client).fetchDaily(51.5, -0.12, 5, Units.IMPERIAL);
+		assertThat(r.units()).isEqualTo("imperial");
+		assertThat(r.temperatureUnit()).isEqualTo("°F");
+		assertThat(r.precipitationUnit()).isEqualTo("in");
+		assertThat(r.days().get(0).minTemp()).isEqualTo(50.0);
+		assertThat(r.days().get(0).maxTemp()).isEqualTo(50.0);
+		assertThat(r.days().get(0).precipitation()).isEqualTo(50.0);
 	}
 
 	@Test
 	void unknownWeatherCodeGivesUnknownSummary() {
 		when(client.geocode("London")).thenReturn(london);
-		when(client.fetchDaily(51.5, -0.12, 5))
+		when(client.fetchDaily(51.5, -0.12, 5, Units.METRIC))
 				.thenReturn(new ForecastApiResponse(validDaily(List.of(4, 4, 4, 4, 1234))));
 
-		ForecastResponse r = service.getForecast("London");
+		ForecastResponse r = service.getForecast("London", Units.METRIC);
 
 		assertThat(r.days()).allSatisfy(d -> assertThat(d.summary()).isEqualTo("Unknown"));
 	}
@@ -94,7 +124,7 @@ class ForecastServiceTest {
 	void cityNotFoundPropagatesAndSkipsForecastCall() {
 		when(client.geocode("Nowhere")).thenThrow(new CityNotFoundException("Nowhere"));
 
-		assertThatThrownBy(() -> service.getForecast("Nowhere")).isInstanceOf(CityNotFoundException.class);
+		assertThatThrownBy(() -> service.getForecast("Nowhere", Units.METRIC)).isInstanceOf(CityNotFoundException.class);
 		verify(client).geocode("Nowhere");
 		verifyNoMoreInteractions(client);
 	}
@@ -102,16 +132,16 @@ class ForecastServiceTest {
 	@Test
 	void upstreamFailureFromForecastPropagates() {
 		when(client.geocode("London")).thenReturn(london);
-		when(client.fetchDaily(51.5, -0.12, 5)).thenThrow(new UpstreamServiceException("boom"));
+		when(client.fetchDaily(51.5, -0.12, 5, Units.METRIC)).thenThrow(new UpstreamServiceException("boom"));
 
-		assertThatThrownBy(() -> service.getForecast("London")).isInstanceOf(UpstreamServiceException.class)
+		assertThatThrownBy(() -> service.getForecast("London", Units.METRIC)).isInstanceOf(UpstreamServiceException.class)
 				.hasMessage("boom");
 	}
 
 	private void assertMalformed(Daily d) {
 		when(client.geocode("London")).thenReturn(london);
-		when(client.fetchDaily(51.5, -0.12, 5)).thenReturn(new ForecastApiResponse(d));
-		assertThatThrownBy(() -> service.getForecast("London")).isInstanceOf(UpstreamServiceException.class)
+		when(client.fetchDaily(51.5, -0.12, 5, Units.METRIC)).thenReturn(new ForecastApiResponse(d));
+		assertThatThrownBy(() -> service.getForecast("London", Units.METRIC)).isInstanceOf(UpstreamServiceException.class)
 				.hasMessage("Forecast service returned malformed daily data");
 	}
 

@@ -19,6 +19,7 @@ import com.learn.weather_service.dto.DailyForecast;
 import com.learn.weather_service.dto.ForecastResponse;
 import com.learn.weather_service.exception.CityNotFoundException;
 import com.learn.weather_service.exception.UpstreamServiceException;
+import com.learn.weather_service.model.Units;
 import com.learn.weather_service.service.ForecastService;
 
 @WebMvcTest(ForecastController.class)
@@ -34,27 +35,30 @@ class ForecastControllerTest {
 	void okReturnsForecastShape() throws Exception {
 		List<DailyForecast> days = List.of(new DailyForecast("2026-10-30", 8.1, 14.2, 0.4, 3, "Overcast"),
 				new DailyForecast("2026-10-31", 7.0, 12.0, 0.0, 0, "Clear sky"));
-		when(service.getForecast("London"))
-				.thenReturn(new ForecastResponse("London", "United Kingdom", 51.5, -0.12, days));
+		when(service.getForecast("London", Units.METRIC))
+				.thenReturn(new ForecastResponse("London", "United Kingdom", 51.5, -0.12, "metric", "°C", "mm", days));
 
 		mvc.perform(get("/api/forecast").param("city", "London")).andExpect(status().isOk())
 				.andExpect(jsonPath("$.city").value("London"))
 				.andExpect(jsonPath("$.country").value("United Kingdom"))
 				.andExpect(jsonPath("$.latitude").value(51.5)).andExpect(jsonPath("$.longitude").value(-0.12))
+				.andExpect(jsonPath("$.units").value("metric"))
+				.andExpect(jsonPath("$.temperatureUnit").value("°C"))
+				.andExpect(jsonPath("$.precipitationUnit").value("mm"))
 				.andExpect(jsonPath("$.days.length()").value(2))
 				.andExpect(jsonPath("$.days[0].date").value("2026-10-30"))
-				.andExpect(jsonPath("$.days[0].minTempC").value(8.1))
-				.andExpect(jsonPath("$.days[0].maxTempC").value(14.2))
-				.andExpect(jsonPath("$.days[0].precipitationMm").value(0.4))
+				.andExpect(jsonPath("$.days[0].minTemp").value(8.1))
+				.andExpect(jsonPath("$.days[0].maxTemp").value(14.2))
+				.andExpect(jsonPath("$.days[0].precipitation").value(0.4))
 				.andExpect(jsonPath("$.days[0].weatherCode").value(3))
 				.andExpect(jsonPath("$.days[0].summary").value("Overcast"));
 	}
 
 	@Test
 	void cityIsTrimmed() throws Exception {
-		when(service.getForecast("London")).thenReturn(new ForecastResponse("London", "UK", 1, 2, List.of()));
+		when(service.getForecast("London", Units.METRIC)).thenReturn(new ForecastResponse("London", "UK", 1, 2, "metric", "°C", "mm", List.of()));
 		mvc.perform(get("/api/forecast").param("city", "  London  ")).andExpect(status().isOk());
-		verify(service).getForecast("London");
+		verify(service).getForecast("London", Units.METRIC);
 	}
 
 	@Test
@@ -81,7 +85,7 @@ class ForecastControllerTest {
 
 	@Test
 	void cityNotFoundIs404() throws Exception {
-		when(service.getForecast("Nowhere")).thenThrow(new CityNotFoundException("Nowhere"));
+		when(service.getForecast("Nowhere", Units.METRIC)).thenThrow(new CityNotFoundException("Nowhere"));
 		mvc.perform(get("/api/forecast").param("city", "Nowhere")).andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.error").value("Not Found"))
 				.andExpect(jsonPath("$.message").value("City not found: Nowhere"));
@@ -89,9 +93,53 @@ class ForecastControllerTest {
 
 	@Test
 	void upstreamFailureIs502() throws Exception {
-		when(service.getForecast("London")).thenThrow(new UpstreamServiceException("down"));
+		when(service.getForecast("London", Units.METRIC)).thenThrow(new UpstreamServiceException("down"));
 		mvc.perform(get("/api/forecast").param("city", "London")).andExpect(status().isBadGateway())
 				.andExpect(jsonPath("$.error").value("Bad Gateway"))
 				.andExpect(jsonPath("$.message").value("down"));
+	}
+
+	private static final String UNITS_MSG = "Query parameter 'units' must be 'metric' or 'imperial'";
+
+	@Test
+	void noUnitsDefaultsToMetric() throws Exception {
+		when(service.getForecast("London", Units.METRIC))
+				.thenReturn(new ForecastResponse("London", "UK", 1, 2, "metric", "°C", "mm", List.of()));
+		mvc.perform(get("/api/forecast").param("city", "London")).andExpect(status().isOk());
+		verify(service).getForecast("London", Units.METRIC);
+	}
+
+	@Test
+	void imperialUnitsPassedToServiceAndLabelsReturned() throws Exception {
+		when(service.getForecast("London", Units.IMPERIAL))
+				.thenReturn(new ForecastResponse("London", "UK", 1, 2, "imperial", "°F", "in", List.of()));
+		mvc.perform(get("/api/forecast").param("city", "London").param("units", "imperial"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.units").value("imperial"))
+				.andExpect(jsonPath("$.temperatureUnit").value("°F"))
+				.andExpect(jsonPath("$.precipitationUnit").value("in"));
+		verify(service).getForecast("London", Units.IMPERIAL);
+	}
+
+	@Test
+	void unknownUnitsIs400() throws Exception {
+		mvc.perform(get("/api/forecast").param("city", "London").param("units", "kelvin"))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("Bad Request"))
+				.andExpect(jsonPath("$.message").value(UNITS_MSG));
+		verifyNoInteractions(service);
+	}
+
+	@Test
+	void emptyUnitsIs400() throws Exception {
+		mvc.perform(get("/api/forecast").param("city", "London").param("units", ""))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("Bad Request"))
+				.andExpect(jsonPath("$.message").value(UNITS_MSG));
+		verifyNoInteractions(service);
+	}
+
+	@Test
+	void missingCityWithBadUnitsReportsCityError() throws Exception {
+		mvc.perform(get("/api/forecast").param("units", "kelvin")).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("Query parameter 'city' is required"));
+		verifyNoInteractions(service);
 	}
 }

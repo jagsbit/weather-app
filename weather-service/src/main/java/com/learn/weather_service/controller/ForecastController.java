@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.learn.weather_service.dto.ForecastResponse;
 import com.learn.weather_service.exception.InvalidRequestException;
+import com.learn.weather_service.model.Units;
 import com.learn.weather_service.service.ForecastService;
 
 @RestController
@@ -20,10 +21,12 @@ public class ForecastController {
 	}
 
 	@GetMapping
-	public ForecastResponse getForecast(@RequestParam(required = false) String city) {
+	public ForecastResponse getForecast(@RequestParam(required = false) String city,
+			@RequestParam(required = false) String units) {
 		if (city == null || city.isBlank()) {
 			throw new InvalidRequestException("Query parameter 'city' is required");
 		}
-		return service.getForecast(city.trim());
+		Units parsedUnits = Units.parse(units);
+		return service.getForecast(city.trim(), parsedUnits);
 	}
 }

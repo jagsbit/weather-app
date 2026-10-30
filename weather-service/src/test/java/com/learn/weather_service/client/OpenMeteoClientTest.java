@@ -27,6 +27,7 @@ import com.learn.weather_service.client.OpenMeteoModels.GeocodingResult;
 import com.learn.weather_service.config.WeatherApiProperties;
 import com.learn.weather_service.exception.CityNotFoundException;
 import com.learn.weather_service.exception.UpstreamServiceException;
+import com.learn.weather_service.model.Units;
 
 class OpenMeteoClientTest {
 
@@ -108,10 +109,11 @@ class OpenMeteoClientTest {
 		server.expect(method(HttpMethod.GET)).andExpect(queryParam("latitude", "51.5"))
 				.andExpect(queryParam("longitude", "-0.12"))
 				.andExpect(queryParam("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"))
-				.andExpect(queryParam("forecast_days", "5")).andExpect(queryParam("timezone", "auto"))
+				.andExpect(queryParam("temperature_unit", "celsius"))
+				.andExpect(queryParam("precipitation_unit", "mm")).andExpect(queryParam("forecast_days", "5")).andExpect(queryParam("timezone", "auto"))
 				.andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
 
-		ForecastApiResponse r = client.fetchDaily(51.5, -0.12, 5);
+		ForecastApiResponse r = client.fetchDaily(51.5, -0.12, 5, Units.METRIC);
 
 		assertThat(r.daily().time()).containsExactly("2026-10-30", "2026-10-31");
 		assertThat(r.daily().weatherCode()).containsExactly(3, 61);
@@ -122,9 +124,24 @@ class OpenMeteoClientTest {
 	}
 
 	@Test
+	void fetchDailyImperialSendsFahrenheitAndInch() {
+		String body = "{\"daily\":{\"time\":[\"2026-10-30\"],\"weather_code\":[3],"
+				+ "\"temperature_2m_max\":[57.6],\"temperature_2m_min\":[46.5],\"precipitation_sum\":[0.02]}}";
+		server.expect(method(HttpMethod.GET)).andExpect(queryParam("temperature_unit", "fahrenheit"))
+				.andExpect(queryParam("precipitation_unit", "inch"))
+				.andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+
+		ForecastApiResponse r = client.fetchDaily(51.5, -0.12, 5, Units.IMPERIAL);
+
+		assertThat(r.daily().temperatureMax()).containsExactly(57.6);
+		assertThat(r.daily().precipitationSum()).containsExactly(0.02);
+		server.verify();
+	}
+
+	@Test
 	void fetchDailyServerErrorWrappedAsUpstream() {
 		server.expect(method(HttpMethod.GET)).andRespond(withServerError());
-		assertThatThrownBy(() -> client.fetchDaily(1, 2, 5)).isInstanceOf(UpstreamServiceException.class)
+		assertThatThrownBy(() -> client.fetchDaily(1, 2, 5, Units.METRIC)).isInstanceOf(UpstreamServiceException.class)
 				.hasMessage("Forecast service call failed");
 	}
 
@@ -132,7 +149,7 @@ class OpenMeteoClientTest {
 	void fetchDailyMissingDailyThrowsUpstream() {
 		server.expect(method(HttpMethod.GET))
 				.andRespond(withSuccess("{\"latitude\":1}", MediaType.APPLICATION_JSON));
-		assertThatThrownBy(() -> client.fetchDaily(1, 2, 5)).isInstanceOf(UpstreamServiceException.class)
+		assertThatThrownBy(() -> client.fetchDaily(1, 2, 5, Units.METRIC)).isInstanceOf(UpstreamServiceException.class)
 				.hasMessage("Forecast service returned no data");
 	}
 
